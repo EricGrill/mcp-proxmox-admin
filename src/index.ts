@@ -6,7 +6,7 @@ import {
   ListToolsRequestSchema,
   type Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { loadConfig, type Config } from "./config/index.js";
+import { loadConfig, type Config, type Transport } from "./config/index.js";
 import { TransportRouter } from "./transports/index.js";
 
 // Tool handler type
@@ -28,6 +28,11 @@ const toolDefinitions: Tool[] = [
           type: "string",
           description: "Optional node name to filter VMs. If not provided, lists VMs from all nodes.",
         },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
       },
       required: [],
     },
@@ -46,6 +51,11 @@ const toolDefinitions: Tool[] = [
           type: "number",
           description: "VM ID to start",
         },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
       },
       required: ["node", "vmid"],
     },
@@ -63,6 +73,11 @@ const toolDefinitions: Tool[] = [
         vmid: {
           type: "number",
           description: "VM ID to stop",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
         },
       },
       required: ["node", "vmid"],
@@ -86,6 +101,11 @@ const toolDefinitions: Tool[] = [
           type: "number",
           description: "Timeout in seconds to wait for shutdown (default: 60)",
         },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
       },
       required: ["node", "vmid"],
     },
@@ -104,6 +124,11 @@ const toolDefinitions: Tool[] = [
           type: "number",
           description: "VM ID to restart",
         },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
       },
       required: ["node", "vmid"],
     },
@@ -119,6 +144,11 @@ const toolDefinitions: Tool[] = [
         node: {
           type: "string",
           description: "Optional node name to filter containers. If not provided, lists containers from all nodes.",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
         },
       },
       required: [],
@@ -138,6 +168,11 @@ const toolDefinitions: Tool[] = [
           type: "number",
           description: "Container ID to start",
         },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
       },
       required: ["node", "vmid"],
     },
@@ -155,6 +190,11 @@ const toolDefinitions: Tool[] = [
         vmid: {
           type: "number",
           description: "Container ID to stop",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
         },
       },
       required: ["node", "vmid"],
@@ -174,6 +214,11 @@ const toolDefinitions: Tool[] = [
           type: "number",
           description: "Container ID to restart",
         },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
       },
       required: ["node", "vmid"],
     },
@@ -185,7 +230,13 @@ const toolDefinitions: Tool[] = [
     description: "List all nodes in the Proxmox cluster",
     inputSchema: {
       type: "object",
-      properties: {},
+      properties: {
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
+      },
       required: [],
     },
   },
@@ -198,6 +249,11 @@ const toolDefinitions: Tool[] = [
         node: {
           type: "string",
           description: "Node name to get status for",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
         },
       },
       required: ["node"],
@@ -214,6 +270,11 @@ const toolDefinitions: Tool[] = [
         node: {
           type: "string",
           description: "Optional node name to filter storage. If not provided, lists storage from all nodes.",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
         },
       },
       required: [],
@@ -239,6 +300,11 @@ const toolDefinitions: Tool[] = [
           type: "string",
           enum: ["vm", "ct"],
           description: "Type of resource: 'vm' for virtual machine, 'ct' for container",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
         },
       },
       required: ["node", "vmid", "type"],
@@ -271,6 +337,11 @@ const toolDefinitions: Tool[] = [
           type: "string",
           description: "Optional description for the snapshot",
         },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
       },
       required: ["node", "vmid", "type", "name"],
     },
@@ -297,6 +368,11 @@ const toolDefinitions: Tool[] = [
         name: {
           type: "string",
           description: "Name of the snapshot to restore",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
         },
       },
       required: ["node", "vmid", "type", "name"],
@@ -325,8 +401,17 @@ const toolDefinitions: Tool[] = [
           type: "string",
           description: "Name of the snapshot to delete",
         },
+        confirm: {
+          type: "boolean",
+          description: "Must be true to confirm deletion",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
       },
-      required: ["node", "vmid", "type", "name"],
+      required: ["node", "vmid", "type", "name", "confirm"],
     },
   },
 ];
@@ -337,31 +422,30 @@ const toolDefinitions: Tool[] = [
 export function registerVMTools(
   toolRegistry: Map<string, ToolHandler>,
   router: TransportRouter,
-  config: Config
+  _config: Config
 ): void {
-  // Placeholder - Task 9 will implement actual handlers
   toolRegistry.set("proxmox_vm_list", async (args) => {
-    const transport = router.getTransport(undefined, "read");
+    const transport = router.getTransport(args.transport as Transport | undefined, "read");
     return transport.listVMs(args.node as string | undefined);
   });
 
   toolRegistry.set("proxmox_vm_start", async (args) => {
-    const transport = router.getTransport(undefined, "write");
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
     return transport.startVM(args.node as string, args.vmid as number);
   });
 
   toolRegistry.set("proxmox_vm_stop", async (args) => {
-    const transport = router.getTransport(undefined, "write");
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
     return transport.stopVM(args.node as string, args.vmid as number);
   });
 
   toolRegistry.set("proxmox_vm_shutdown", async (args) => {
-    const transport = router.getTransport(undefined, "write");
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
     return transport.shutdownVM(args.node as string, args.vmid as number);
   });
 
   toolRegistry.set("proxmox_vm_restart", async (args) => {
-    const transport = router.getTransport(undefined, "write");
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
     return transport.restartVM(args.node as string, args.vmid as number);
   });
 }
@@ -369,26 +453,25 @@ export function registerVMTools(
 export function registerContainerTools(
   toolRegistry: Map<string, ToolHandler>,
   router: TransportRouter,
-  config: Config
+  _config: Config
 ): void {
-  // Placeholder - Task 9 will implement actual handlers
   toolRegistry.set("proxmox_ct_list", async (args) => {
-    const transport = router.getTransport(undefined, "read");
+    const transport = router.getTransport(args.transport as Transport | undefined, "read");
     return transport.listContainers(args.node as string | undefined);
   });
 
   toolRegistry.set("proxmox_ct_start", async (args) => {
-    const transport = router.getTransport(undefined, "write");
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
     return transport.startContainer(args.node as string, args.vmid as number);
   });
 
   toolRegistry.set("proxmox_ct_stop", async (args) => {
-    const transport = router.getTransport(undefined, "write");
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
     return transport.stopContainer(args.node as string, args.vmid as number);
   });
 
   toolRegistry.set("proxmox_ct_restart", async (args) => {
-    const transport = router.getTransport(undefined, "write");
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
     return transport.restartContainer(args.node as string, args.vmid as number);
   });
 }
@@ -396,16 +479,15 @@ export function registerContainerTools(
 export function registerNodeTools(
   toolRegistry: Map<string, ToolHandler>,
   router: TransportRouter,
-  config: Config
+  _config: Config
 ): void {
-  // Placeholder - Task 9 will implement actual handlers
-  toolRegistry.set("proxmox_node_list", async () => {
-    const transport = router.getTransport(undefined, "read");
+  toolRegistry.set("proxmox_node_list", async (args) => {
+    const transport = router.getTransport(args.transport as Transport | undefined, "read");
     return transport.listNodes();
   });
 
   toolRegistry.set("proxmox_node_status", async (args) => {
-    const transport = router.getTransport(undefined, "read");
+    const transport = router.getTransport(args.transport as Transport | undefined, "read");
     return transport.getNodeStatus(args.node as string);
   });
 }
@@ -413,11 +495,10 @@ export function registerNodeTools(
 export function registerStorageTools(
   toolRegistry: Map<string, ToolHandler>,
   router: TransportRouter,
-  config: Config
+  _config: Config
 ): void {
-  // Placeholder - Task 9 will implement actual handlers
   toolRegistry.set("proxmox_storage_list", async (args) => {
-    const transport = router.getTransport(undefined, "read");
+    const transport = router.getTransport(args.transport as Transport | undefined, "read");
     return transport.listStorage(args.node as string | undefined);
   });
 }
@@ -427,9 +508,8 @@ export function registerSnapshotTools(
   router: TransportRouter,
   config: Config
 ): void {
-  // Placeholder - Task 9 will implement actual handlers
   toolRegistry.set("proxmox_snapshot_list", async (args) => {
-    const transport = router.getTransport(undefined, "snapshot");
+    const transport = router.getTransport(args.transport as Transport | undefined, "snapshot");
     return transport.listSnapshots(
       args.node as string,
       args.vmid as number,
@@ -438,7 +518,7 @@ export function registerSnapshotTools(
   });
 
   toolRegistry.set("proxmox_snapshot_create", async (args) => {
-    const transport = router.getTransport(undefined, "snapshot");
+    const transport = router.getTransport(args.transport as Transport | undefined, "snapshot");
     return transport.createSnapshot(
       args.node as string,
       args.vmid as number,
@@ -449,7 +529,7 @@ export function registerSnapshotTools(
   });
 
   toolRegistry.set("proxmox_snapshot_restore", async (args) => {
-    const transport = router.getTransport(undefined, "snapshot");
+    const transport = router.getTransport(args.transport as Transport | undefined, "snapshot");
     return transport.restoreSnapshot(
       args.node as string,
       args.vmid as number,
@@ -459,7 +539,13 @@ export function registerSnapshotTools(
   });
 
   toolRegistry.set("proxmox_snapshot_delete", async (args) => {
-    const transport = router.getTransport(undefined, "snapshot");
+    if (args.confirm !== true) {
+      throw new Error("Deletion requires confirm: true");
+    }
+    if (config.safeMode) {
+      throw new Error("Delete operations disabled in safe mode");
+    }
+    const transport = router.getTransport(args.transport as Transport | undefined, "snapshot");
     return transport.deleteSnapshot(
       args.node as string,
       args.vmid as number,
