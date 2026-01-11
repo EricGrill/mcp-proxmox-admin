@@ -36,7 +36,7 @@ npm install mcp-proxmox-admin
 ### From Source
 
 ```bash
-git clone https://github.com/your-org/mcp-proxmox-admin.git
+git clone https://github.com/EricGrill/mcp-proxmox-admin.git
 cd mcp-proxmox-admin
 npm install
 npm run build
