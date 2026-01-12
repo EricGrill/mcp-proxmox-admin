@@ -1,5 +1,18 @@
 // src/transports/types.ts
-import type { TaskResult, VMStatus, ContainerStatus, NodeStatus, StorageInfo, Snapshot } from "../types/proxmox.js";
+import type {
+  TaskResult,
+  VMStatus,
+  ContainerStatus,
+  NodeStatus,
+  StorageInfo,
+  Snapshot,
+  VMCreateConfig,
+  VMCloneConfig,
+  VMDeleteConfig,
+  ContainerCreateConfig,
+  ContainerCloneConfig,
+  ContainerDeleteConfig,
+} from "../types/proxmox.js";
 
 export interface CommandResult {
   success: boolean;
@@ -25,6 +38,9 @@ export interface Transport {
   stopVM(node: string, vmid: number): Promise<TaskResult>;
   shutdownVM(node: string, vmid: number): Promise<TaskResult>;
   restartVM(node: string, vmid: number): Promise<TaskResult>;
+  createVM(node: string, config: VMCreateConfig): Promise<TaskResult>;
+  deleteVM(node: string, vmid: number, options?: VMDeleteConfig): Promise<TaskResult>;
+  cloneVM(node: string, config: VMCloneConfig): Promise<TaskResult>;
 
   // Container operations
   listContainers(node?: string): Promise<ContainerStatus[]>;
@@ -32,6 +48,9 @@ export interface Transport {
   startContainer(node: string, vmid: number): Promise<TaskResult>;
   stopContainer(node: string, vmid: number): Promise<TaskResult>;
   restartContainer(node: string, vmid: number): Promise<TaskResult>;
+  createContainer(node: string, config: ContainerCreateConfig): Promise<TaskResult>;
+  deleteContainer(node: string, vmid: number, options?: ContainerDeleteConfig): Promise<TaskResult>;
+  cloneContainer(node: string, config: ContainerCloneConfig): Promise<TaskResult>;
 
   // Node operations
   listNodes(): Promise<NodeStatus[]>;

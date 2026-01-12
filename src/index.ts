@@ -133,6 +133,189 @@ const toolDefinitions: Tool[] = [
       required: ["node", "vmid"],
     },
   },
+  {
+    name: "proxmox_vm_create",
+    description: "Create a new virtual machine with full Proxmox configuration options",
+    inputSchema: {
+      type: "object",
+      properties: {
+        node: {
+          type: "string",
+          description: "Node name where the VM should be created",
+        },
+        vmid: {
+          type: "number",
+          description: "Unique VM ID (100-999999999)",
+        },
+        name: {
+          type: "string",
+          description: "VM name",
+        },
+        memory: {
+          type: "number",
+          description: "Memory in MB (default: 2048)",
+        },
+        cores: {
+          type: "number",
+          description: "Number of CPU cores (default: 1)",
+        },
+        sockets: {
+          type: "number",
+          description: "Number of CPU sockets (default: 1)",
+        },
+        cpu: {
+          type: "string",
+          description: "CPU type (default: host)",
+        },
+        storage: {
+          type: "string",
+          description: "Storage pool for primary disk",
+        },
+        diskSize: {
+          type: "string",
+          description: "Primary disk size (e.g., '32G')",
+        },
+        scsihw: {
+          type: "string",
+          description: "SCSI controller type (default: virtio-scsi-pci)",
+        },
+        net0: {
+          type: "string",
+          description: "Network configuration (e.g., 'virtio,bridge=vmbr0')",
+        },
+        bios: {
+          type: "string",
+          enum: ["seabios", "ovmf"],
+          description: "BIOS type: seabios or ovmf (UEFI)",
+        },
+        boot: {
+          type: "string",
+          description: "Boot order string",
+        },
+        iso: {
+          type: "string",
+          description: "ISO image path for installation",
+        },
+        ostype: {
+          type: "string",
+          description: "OS type hint (l26, win10, etc.)",
+        },
+        agent: {
+          type: "string",
+          description: "QEMU guest agent configuration",
+        },
+        onboot: {
+          type: "boolean",
+          description: "Start VM on node boot",
+        },
+        start: {
+          type: "boolean",
+          description: "Start VM after creation",
+        },
+        description: {
+          type: "string",
+          description: "VM description",
+        },
+        tags: {
+          type: "string",
+          description: "Comma-separated tags",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
+      },
+      required: ["node", "vmid", "name"],
+    },
+  },
+  {
+    name: "proxmox_vm_destroy",
+    description: "Destroy a virtual machine permanently",
+    inputSchema: {
+      type: "object",
+      properties: {
+        node: {
+          type: "string",
+          description: "Node name where the VM is located",
+        },
+        vmid: {
+          type: "number",
+          description: "VM ID to destroy",
+        },
+        confirm: {
+          type: "boolean",
+          description: "Must be true to confirm destruction",
+        },
+        purge: {
+          type: "boolean",
+          description: "Remove from backup jobs and HA (default: false)",
+        },
+        destroyUnreferencedDisks: {
+          type: "boolean",
+          description: "Remove orphaned disks (default: true)",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
+      },
+      required: ["node", "vmid", "confirm"],
+    },
+  },
+  {
+    name: "proxmox_vm_clone",
+    description: "Clone a virtual machine from a template or existing VM",
+    inputSchema: {
+      type: "object",
+      properties: {
+        node: {
+          type: "string",
+          description: "Source node name",
+        },
+        vmid: {
+          type: "number",
+          description: "Source VM ID to clone from",
+        },
+        newid: {
+          type: "number",
+          description: "Target VM ID for the clone",
+        },
+        name: {
+          type: "string",
+          description: "Name for the cloned VM",
+        },
+        target: {
+          type: "string",
+          description: "Target node (if different from source)",
+        },
+        full: {
+          type: "boolean",
+          description: "Full clone vs linked clone (default: true)",
+        },
+        storage: {
+          type: "string",
+          description: "Target storage for full clone",
+        },
+        format: {
+          type: "string",
+          enum: ["raw", "qcow2", "vmdk"],
+          description: "Disk format for full clone",
+        },
+        description: {
+          type: "string",
+          description: "Description for the clone",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
+      },
+      required: ["node", "vmid", "newid"],
+    },
+  },
 
   // Container Tools
   {
@@ -221,6 +404,187 @@ const toolDefinitions: Tool[] = [
         },
       },
       required: ["node", "vmid"],
+    },
+  },
+  {
+    name: "proxmox_ct_create",
+    description: "Create a new LXC container with full Proxmox configuration options",
+    inputSchema: {
+      type: "object",
+      properties: {
+        node: {
+          type: "string",
+          description: "Node name where the container should be created",
+        },
+        vmid: {
+          type: "number",
+          description: "Unique container ID (100-999999999)",
+        },
+        ostemplate: {
+          type: "string",
+          description: "OS template path (e.g., 'local:vztmpl/debian-12-standard_12.2-1_amd64.tar.zst')",
+        },
+        hostname: {
+          type: "string",
+          description: "Container hostname",
+        },
+        memory: {
+          type: "number",
+          description: "Memory in MB (default: 512)",
+        },
+        swap: {
+          type: "number",
+          description: "Swap in MB (default: 512)",
+        },
+        cores: {
+          type: "number",
+          description: "Number of CPU cores (default: 1)",
+        },
+        cpulimit: {
+          type: "number",
+          description: "CPU limit (0-128, default: 0 = unlimited)",
+        },
+        storage: {
+          type: "string",
+          description: "Storage pool for rootfs",
+        },
+        rootfs: {
+          type: "string",
+          description: "Root filesystem size (e.g., '8G')",
+        },
+        net0: {
+          type: "string",
+          description: "Network configuration (e.g., 'name=eth0,bridge=vmbr0,ip=dhcp')",
+        },
+        nameserver: {
+          type: "string",
+          description: "DNS server",
+        },
+        searchdomain: {
+          type: "string",
+          description: "DNS search domain",
+        },
+        unprivileged: {
+          type: "boolean",
+          description: "Run as unprivileged container (default: true, recommended)",
+        },
+        features: {
+          type: "string",
+          description: "Container features (nesting, keyctl, fuse, etc.)",
+        },
+        password: {
+          type: "string",
+          description: "Root password",
+        },
+        sshKeys: {
+          type: "string",
+          description: "SSH public keys for root",
+        },
+        onboot: {
+          type: "boolean",
+          description: "Start container on node boot",
+        },
+        start: {
+          type: "boolean",
+          description: "Start container after creation",
+        },
+        description: {
+          type: "string",
+          description: "Container description",
+        },
+        tags: {
+          type: "string",
+          description: "Comma-separated tags",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
+      },
+      required: ["node", "vmid", "ostemplate"],
+    },
+  },
+  {
+    name: "proxmox_ct_destroy",
+    description: "Destroy an LXC container permanently",
+    inputSchema: {
+      type: "object",
+      properties: {
+        node: {
+          type: "string",
+          description: "Node name where the container is located",
+        },
+        vmid: {
+          type: "number",
+          description: "Container ID to destroy",
+        },
+        confirm: {
+          type: "boolean",
+          description: "Must be true to confirm destruction",
+        },
+        purge: {
+          type: "boolean",
+          description: "Remove from backup jobs and HA (default: false)",
+        },
+        force: {
+          type: "boolean",
+          description: "Force destroy even if running (default: false)",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
+      },
+      required: ["node", "vmid", "confirm"],
+    },
+  },
+  {
+    name: "proxmox_ct_clone",
+    description: "Clone an LXC container from a template or existing container",
+    inputSchema: {
+      type: "object",
+      properties: {
+        node: {
+          type: "string",
+          description: "Source node name",
+        },
+        vmid: {
+          type: "number",
+          description: "Source container ID to clone from",
+        },
+        newid: {
+          type: "number",
+          description: "Target container ID for the clone",
+        },
+        hostname: {
+          type: "string",
+          description: "Hostname for the cloned container",
+        },
+        target: {
+          type: "string",
+          description: "Target node (if different from source)",
+        },
+        full: {
+          type: "boolean",
+          description: "Full clone vs linked clone (default: true)",
+        },
+        storage: {
+          type: "string",
+          description: "Target storage for full clone",
+        },
+        description: {
+          type: "string",
+          description: "Description for the clone",
+        },
+        transport: {
+          type: "string",
+          enum: ["ssh", "api", "auto"],
+          description: "Transport to use (default: auto)",
+        },
+      },
+      required: ["node", "vmid", "newid"],
     },
   },
 
@@ -422,7 +786,7 @@ const toolDefinitions: Tool[] = [
 export function registerVMTools(
   toolRegistry: Map<string, ToolHandler>,
   router: TransportRouter,
-  _config: Config
+  config: Config
 ): void {
   toolRegistry.set("proxmox_vm_list", async (args) => {
     const transport = router.getTransport(args.transport as Transport | undefined, "read");
@@ -448,12 +812,66 @@ export function registerVMTools(
     const transport = router.getTransport(args.transport as Transport | undefined, "write");
     return transport.restartVM(args.node as string, args.vmid as number);
   });
+
+  toolRegistry.set("proxmox_vm_create", async (args) => {
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
+    return transport.createVM(args.node as string, {
+      vmid: args.vmid as number,
+      name: args.name as string,
+      memory: args.memory as number | undefined,
+      cores: args.cores as number | undefined,
+      sockets: args.sockets as number | undefined,
+      cpu: args.cpu as string | undefined,
+      storage: args.storage as string | undefined,
+      diskSize: args.diskSize as string | undefined,
+      scsihw: args.scsihw as string | undefined,
+      net0: args.net0 as string | undefined,
+      bios: args.bios as "seabios" | "ovmf" | undefined,
+      boot: args.boot as string | undefined,
+      iso: args.iso as string | undefined,
+      ostype: args.ostype as string | undefined,
+      agent: args.agent as string | undefined,
+      onboot: args.onboot as boolean | undefined,
+      start: args.start as boolean | undefined,
+      description: args.description as string | undefined,
+      tags: args.tags as string | undefined,
+    });
+  });
+
+  toolRegistry.set("proxmox_vm_destroy", async (args) => {
+    if (args.confirm !== true) {
+      throw new Error("Destruction requires confirm: true");
+    }
+    if (config.safeMode) {
+      throw new Error("Destructive operations disabled in safe mode");
+    }
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
+    return transport.deleteVM(args.node as string, args.vmid as number, {
+      vmid: args.vmid as number,
+      purge: args.purge as boolean | undefined,
+      destroyUnreferencedDisks: args.destroyUnreferencedDisks as boolean | undefined,
+    });
+  });
+
+  toolRegistry.set("proxmox_vm_clone", async (args) => {
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
+    return transport.cloneVM(args.node as string, {
+      vmid: args.vmid as number,
+      newid: args.newid as number,
+      name: args.name as string | undefined,
+      target: args.target as string | undefined,
+      full: args.full as boolean | undefined,
+      storage: args.storage as string | undefined,
+      format: args.format as "raw" | "qcow2" | "vmdk" | undefined,
+      description: args.description as string | undefined,
+    });
+  });
 }
 
 export function registerContainerTools(
   toolRegistry: Map<string, ToolHandler>,
   router: TransportRouter,
-  _config: Config
+  config: Config
 ): void {
   toolRegistry.set("proxmox_ct_list", async (args) => {
     const transport = router.getTransport(args.transport as Transport | undefined, "read");
@@ -473,6 +891,60 @@ export function registerContainerTools(
   toolRegistry.set("proxmox_ct_restart", async (args) => {
     const transport = router.getTransport(args.transport as Transport | undefined, "write");
     return transport.restartContainer(args.node as string, args.vmid as number);
+  });
+
+  toolRegistry.set("proxmox_ct_create", async (args) => {
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
+    return transport.createContainer(args.node as string, {
+      vmid: args.vmid as number,
+      ostemplate: args.ostemplate as string,
+      hostname: args.hostname as string | undefined,
+      memory: args.memory as number | undefined,
+      swap: args.swap as number | undefined,
+      cores: args.cores as number | undefined,
+      cpulimit: args.cpulimit as number | undefined,
+      storage: args.storage as string | undefined,
+      rootfs: args.rootfs as string | undefined,
+      net0: args.net0 as string | undefined,
+      nameserver: args.nameserver as string | undefined,
+      searchdomain: args.searchdomain as string | undefined,
+      unprivileged: args.unprivileged as boolean | undefined,
+      features: args.features as string | undefined,
+      password: args.password as string | undefined,
+      "ssh-public-keys": args.sshKeys as string | undefined,
+      onboot: args.onboot as boolean | undefined,
+      start: args.start as boolean | undefined,
+      description: args.description as string | undefined,
+      tags: args.tags as string | undefined,
+    });
+  });
+
+  toolRegistry.set("proxmox_ct_destroy", async (args) => {
+    if (args.confirm !== true) {
+      throw new Error("Destruction requires confirm: true");
+    }
+    if (config.safeMode) {
+      throw new Error("Destructive operations disabled in safe mode");
+    }
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
+    return transport.deleteContainer(args.node as string, args.vmid as number, {
+      vmid: args.vmid as number,
+      purge: args.purge as boolean | undefined,
+      force: args.force as boolean | undefined,
+    });
+  });
+
+  toolRegistry.set("proxmox_ct_clone", async (args) => {
+    const transport = router.getTransport(args.transport as Transport | undefined, "write");
+    return transport.cloneContainer(args.node as string, {
+      vmid: args.vmid as number,
+      newid: args.newid as number,
+      hostname: args.hostname as string | undefined,
+      target: args.target as string | undefined,
+      full: args.full as boolean | undefined,
+      storage: args.storage as string | undefined,
+      description: args.description as string | undefined,
+    });
   });
 }
 

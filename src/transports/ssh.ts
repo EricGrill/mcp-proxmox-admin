@@ -10,6 +10,12 @@ import type {
   StorageInfo,
   Snapshot,
   TaskResult,
+  VMCreateConfig,
+  VMCloneConfig,
+  VMDeleteConfig,
+  ContainerCreateConfig,
+  ContainerCloneConfig,
+  ContainerDeleteConfig,
 } from "../types/proxmox.js";
 
 export class SSHTransport implements Transport {
@@ -263,6 +269,75 @@ export class SSHTransport implements Transport {
     };
   }
 
+  async createVM(node: string, config: VMCreateConfig): Promise<TaskResult> {
+    // Build qm create command with parameters
+    const args: string[] = [`${config.vmid}`];
+
+    if (config.name) args.push(`--name ${config.name}`);
+    if (config.memory) args.push(`--memory ${config.memory}`);
+    if (config.cores) args.push(`--cores ${config.cores}`);
+    if (config.sockets) args.push(`--sockets ${config.sockets}`);
+    if (config.cpu) args.push(`--cpu ${config.cpu}`);
+    if (config.scsihw) args.push(`--scsihw ${config.scsihw}`);
+    if (config.bios) args.push(`--bios ${config.bios}`);
+    if (config.boot) args.push(`--boot ${config.boot}`);
+    if (config.ostype) args.push(`--ostype ${config.ostype}`);
+    if (config.agent) args.push(`--agent ${config.agent}`);
+    if (config.onboot !== undefined) args.push(`--onboot ${config.onboot ? 1 : 0}`);
+    if (config.protection !== undefined) args.push(`--protection ${config.protection ? 1 : 0}`);
+    if (config.start !== undefined) args.push(`--start ${config.start ? 1 : 0}`);
+    if (config.description) args.push(`--description "${config.description.replace(/"/g, '\\"')}"`);
+    if (config.tags) args.push(`--tags ${config.tags}`);
+    if (config.net0) args.push(`--net0 ${config.net0}`);
+
+    // Handle disk configuration
+    if (config.storage && config.diskSize) {
+      args.push(`--scsi0 ${config.storage}:${config.diskSize}`);
+    }
+
+    // Handle ISO/CD-ROM
+    if (config.iso) {
+      args.push(`--ide2 ${config.iso},media=cdrom`);
+    } else if (config.cdrom) {
+      args.push(`--ide2 ${config.cdrom}`);
+    }
+
+    const result = await this.executeCommand(`qm create ${args.join(" ")}`);
+    return {
+      success: result.success,
+      message: result.success ? `VM ${config.vmid} created` : result.stderr,
+    };
+  }
+
+  async deleteVM(node: string, vmid: number, options?: VMDeleteConfig): Promise<TaskResult> {
+    const args: string[] = [`${vmid}`];
+    if (options?.purge) args.push("--purge");
+    if (options?.destroyUnreferencedDisks !== false) args.push("--destroy-unreferenced-disks");
+
+    const result = await this.executeCommand(`qm destroy ${args.join(" ")}`);
+    return {
+      success: result.success,
+      message: result.success ? `VM ${vmid} destroyed` : result.stderr,
+    };
+  }
+
+  async cloneVM(node: string, config: VMCloneConfig): Promise<TaskResult> {
+    const args: string[] = [`${config.vmid}`, `${config.newid}`];
+
+    if (config.name) args.push(`--name ${config.name}`);
+    if (config.target) args.push(`--target ${config.target}`);
+    if (config.full !== undefined) args.push(config.full ? "--full" : "");
+    if (config.storage) args.push(`--storage ${config.storage}`);
+    if (config.format) args.push(`--format ${config.format}`);
+    if (config.description) args.push(`--description "${config.description.replace(/"/g, '\\"')}"`);
+
+    const result = await this.executeCommand(`qm clone ${args.filter(a => a).join(" ")}`);
+    return {
+      success: result.success,
+      message: result.success ? `VM ${config.vmid} cloned to ${config.newid}` : result.stderr,
+    };
+  }
+
   // Container Operations
   async listContainers(node?: string): Promise<ContainerStatus[]> {
     const targetNode = node || (await this.getDefaultNode());
@@ -315,6 +390,72 @@ export class SSHTransport implements Transport {
     return {
       success: result.success,
       message: result.success ? `Container ${vmid} restarted` : result.stderr,
+    };
+  }
+
+  async createContainer(node: string, config: ContainerCreateConfig): Promise<TaskResult> {
+    // Build pct create command with parameters
+    const args: string[] = [`${config.vmid}`, config.ostemplate];
+
+    if (config.hostname) args.push(`--hostname ${config.hostname}`);
+    if (config.memory) args.push(`--memory ${config.memory}`);
+    if (config.swap !== undefined) args.push(`--swap ${config.swap}`);
+    if (config.cores) args.push(`--cores ${config.cores}`);
+    if (config.cpulimit !== undefined) args.push(`--cpulimit ${config.cpulimit}`);
+    if (config.nameserver) args.push(`--nameserver ${config.nameserver}`);
+    if (config.searchdomain) args.push(`--searchdomain ${config.searchdomain}`);
+    if (config.unprivileged !== undefined) args.push(`--unprivileged ${config.unprivileged ? 1 : 0}`);
+    if (config.features) args.push(`--features ${config.features}`);
+    if (config.password) args.push(`--password ${config.password}`);
+    if (config["ssh-public-keys"]) args.push(`--ssh-public-keys "${config["ssh-public-keys"]}"`);
+    if (config.onboot !== undefined) args.push(`--onboot ${config.onboot ? 1 : 0}`);
+    if (config.protection !== undefined) args.push(`--protection ${config.protection ? 1 : 0}`);
+    if (config.start !== undefined) args.push(`--start ${config.start ? 1 : 0}`);
+    if (config.description) args.push(`--description "${config.description.replace(/"/g, '\\"')}"`);
+    if (config.tags) args.push(`--tags ${config.tags}`);
+    if (config.net0) args.push(`--net0 ${config.net0}`);
+
+    // Handle rootfs configuration
+    if (config.storage && config.rootfs) {
+      args.push(`--rootfs ${config.storage}:${config.rootfs}`);
+    } else if (config.rootfs) {
+      args.push(`--rootfs ${config.rootfs}`);
+    } else if (config.storage) {
+      args.push(`--rootfs ${config.storage}:8`);
+    }
+
+    const result = await this.executeCommand(`pct create ${args.join(" ")}`);
+    return {
+      success: result.success,
+      message: result.success ? `Container ${config.vmid} created` : result.stderr,
+    };
+  }
+
+  async deleteContainer(node: string, vmid: number, options?: ContainerDeleteConfig): Promise<TaskResult> {
+    const args: string[] = [`${vmid}`];
+    if (options?.purge) args.push("--purge");
+    if (options?.force) args.push("--force");
+
+    const result = await this.executeCommand(`pct destroy ${args.join(" ")}`);
+    return {
+      success: result.success,
+      message: result.success ? `Container ${vmid} destroyed` : result.stderr,
+    };
+  }
+
+  async cloneContainer(node: string, config: ContainerCloneConfig): Promise<TaskResult> {
+    const args: string[] = [`${config.vmid}`, `${config.newid}`];
+
+    if (config.hostname) args.push(`--hostname ${config.hostname}`);
+    if (config.target) args.push(`--target ${config.target}`);
+    if (config.full !== undefined) args.push(config.full ? "--full" : "");
+    if (config.storage) args.push(`--storage ${config.storage}`);
+    if (config.description) args.push(`--description "${config.description.replace(/"/g, '\\"')}"`);
+
+    const result = await this.executeCommand(`pct clone ${args.filter(a => a).join(" ")}`);
+    return {
+      success: result.success,
+      message: result.success ? `Container ${config.vmid} cloned to ${config.newid}` : result.stderr,
     };
   }
 

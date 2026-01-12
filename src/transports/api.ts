@@ -10,6 +10,12 @@ import type {
   StorageInfo,
   Snapshot,
   TaskResult,
+  VMCreateConfig,
+  VMCloneConfig,
+  VMDeleteConfig,
+  ContainerCreateConfig,
+  ContainerCloneConfig,
+  ContainerDeleteConfig,
 } from "../types/proxmox.js";
 
 interface ProxmoxResponse<T> {
@@ -226,6 +232,119 @@ export class APITransport implements Transport {
     }
   }
 
+  async createVM(node: string, config: VMCreateConfig): Promise<TaskResult> {
+    try {
+      // Build API payload from config
+      const payload: Record<string, unknown> = { vmid: config.vmid };
+
+      // Map config properties to API parameters
+      if (config.name) payload.name = config.name;
+      if (config.memory) payload.memory = config.memory;
+      if (config.cores) payload.cores = config.cores;
+      if (config.sockets) payload.sockets = config.sockets;
+      if (config.cpu) payload.cpu = config.cpu;
+      if (config.scsihw) payload.scsihw = config.scsihw;
+      if (config.bios) payload.bios = config.bios;
+      if (config.boot) payload.boot = config.boot;
+      if (config.ostype) payload.ostype = config.ostype;
+      if (config.agent) payload.agent = config.agent;
+      if (config.onboot !== undefined) payload.onboot = config.onboot ? 1 : 0;
+      if (config.protection !== undefined) payload.protection = config.protection ? 1 : 0;
+      if (config.start !== undefined) payload.start = config.start ? 1 : 0;
+      if (config.description) payload.description = config.description;
+      if (config.tags) payload.tags = config.tags;
+      if (config.net0) payload.net0 = config.net0;
+
+      // Handle disk configuration
+      if (config.storage && config.diskSize) {
+        payload.scsi0 = `${config.storage}:${config.diskSize}`;
+      }
+
+      // Handle ISO/CD-ROM
+      if (config.iso) {
+        payload.ide2 = `${config.iso},media=cdrom`;
+      } else if (config.cdrom) {
+        payload.ide2 = config.cdrom;
+      }
+
+      // Pass through any additional parameters
+      for (const [key, value] of Object.entries(config)) {
+        if (!(key in payload) && !["vmid", "storage", "diskSize", "iso"].includes(key)) {
+          payload[key] = value;
+        }
+      }
+
+      const taskId = await this.apiRequest<string>(
+        "POST",
+        `/nodes/${node}/qemu`,
+        payload
+      );
+      return {
+        success: true,
+        taskId,
+        message: `VM ${config.vmid} creation initiated`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  async deleteVM(node: string, vmid: number, options?: VMDeleteConfig): Promise<TaskResult> {
+    try {
+      const params: Record<string, unknown> = {};
+      if (options?.purge) params.purge = 1;
+      if (options?.destroyUnreferencedDisks !== false) params["destroy-unreferenced-disks"] = 1;
+
+      const taskId = await this.apiRequest<string>(
+        "DELETE",
+        `/nodes/${node}/qemu/${vmid}`,
+        Object.keys(params).length > 0 ? params : undefined
+      );
+      return {
+        success: true,
+        taskId,
+        message: `VM ${vmid} deletion initiated`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  async cloneVM(node: string, config: VMCloneConfig): Promise<TaskResult> {
+    try {
+      const payload: Record<string, unknown> = { newid: config.newid };
+
+      if (config.name) payload.name = config.name;
+      if (config.target) payload.target = config.target;
+      if (config.full !== undefined) payload.full = config.full ? 1 : 0;
+      if (config.storage) payload.storage = config.storage;
+      if (config.format) payload.format = config.format;
+      if (config.description) payload.description = config.description;
+
+      const taskId = await this.apiRequest<string>(
+        "POST",
+        `/nodes/${node}/qemu/${config.vmid}/clone`,
+        payload
+      );
+      return {
+        success: true,
+        taskId,
+        message: `VM ${config.vmid} clone to ${config.newid} initiated`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
   // Container Operations
   async listContainers(node?: string): Promise<ContainerStatus[]> {
     const targetNode = node || (await this.getDefaultNode());
@@ -318,6 +437,118 @@ export class APITransport implements Transport {
         success: true,
         taskId,
         message: `Container ${vmid} restart initiated`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  async createContainer(node: string, config: ContainerCreateConfig): Promise<TaskResult> {
+    try {
+      const payload: Record<string, unknown> = {
+        vmid: config.vmid,
+        ostemplate: config.ostemplate,
+      };
+
+      // Map config properties to API parameters
+      if (config.hostname) payload.hostname = config.hostname;
+      if (config.memory) payload.memory = config.memory;
+      if (config.swap !== undefined) payload.swap = config.swap;
+      if (config.cores) payload.cores = config.cores;
+      if (config.cpulimit !== undefined) payload.cpulimit = config.cpulimit;
+      if (config.nameserver) payload.nameserver = config.nameserver;
+      if (config.searchdomain) payload.searchdomain = config.searchdomain;
+      if (config.unprivileged !== undefined) payload.unprivileged = config.unprivileged ? 1 : 0;
+      if (config.features) payload.features = config.features;
+      if (config.password) payload.password = config.password;
+      if (config["ssh-public-keys"]) payload["ssh-public-keys"] = config["ssh-public-keys"];
+      if (config.onboot !== undefined) payload.onboot = config.onboot ? 1 : 0;
+      if (config.protection !== undefined) payload.protection = config.protection ? 1 : 0;
+      if (config.start !== undefined) payload.start = config.start ? 1 : 0;
+      if (config.description) payload.description = config.description;
+      if (config.tags) payload.tags = config.tags;
+      if (config.net0) payload.net0 = config.net0;
+
+      // Handle rootfs configuration
+      if (config.storage && config.rootfs) {
+        payload.rootfs = `${config.storage}:${config.rootfs}`;
+      } else if (config.rootfs) {
+        payload.rootfs = config.rootfs;
+      } else if (config.storage) {
+        payload.rootfs = `${config.storage}:8`;
+      }
+
+      // Pass through any additional parameters
+      for (const [key, value] of Object.entries(config)) {
+        if (!(key in payload) && !["vmid", "ostemplate", "storage"].includes(key)) {
+          payload[key] = value;
+        }
+      }
+
+      const taskId = await this.apiRequest<string>(
+        "POST",
+        `/nodes/${node}/lxc`,
+        payload
+      );
+      return {
+        success: true,
+        taskId,
+        message: `Container ${config.vmid} creation initiated`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  async deleteContainer(node: string, vmid: number, options?: ContainerDeleteConfig): Promise<TaskResult> {
+    try {
+      const params: Record<string, unknown> = {};
+      if (options?.purge) params.purge = 1;
+      if (options?.force) params.force = 1;
+
+      const taskId = await this.apiRequest<string>(
+        "DELETE",
+        `/nodes/${node}/lxc/${vmid}`,
+        Object.keys(params).length > 0 ? params : undefined
+      );
+      return {
+        success: true,
+        taskId,
+        message: `Container ${vmid} deletion initiated`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
+  }
+
+  async cloneContainer(node: string, config: ContainerCloneConfig): Promise<TaskResult> {
+    try {
+      const payload: Record<string, unknown> = { newid: config.newid };
+
+      if (config.hostname) payload.hostname = config.hostname;
+      if (config.target) payload.target = config.target;
+      if (config.full !== undefined) payload.full = config.full ? 1 : 0;
+      if (config.storage) payload.storage = config.storage;
+      if (config.description) payload.description = config.description;
+
+      const taskId = await this.apiRequest<string>(
+        "POST",
+        `/nodes/${node}/lxc/${config.vmid}/clone`,
+        payload
+      );
+      return {
+        success: true,
+        taskId,
+        message: `Container ${config.vmid} clone to ${config.newid} initiated`,
       };
     } catch (error) {
       return {
