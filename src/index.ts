@@ -1109,8 +1109,10 @@ async function main(): Promise<void> {
   await server.connect(transport);
 }
 
-// Run the main function
-main().catch((error) => {
-  console.error("Fatal error:", error);
-  process.exit(1);
-});
+// Run the main function only if not in test environment
+if (process.env.NODE_ENV !== "test" && !process.env.VITEST) {
+  main().catch((error) => {
+    console.error("Fatal error:", error);
+    process.exit(1);
+  });
+}
